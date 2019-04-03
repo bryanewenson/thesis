@@ -1,10 +1,12 @@
-dataset = 'arrhythmia';
-[D, F, L, num_U] = data_read(dataset, 'descend');
+dataset = 'epilepsy';
 
 %Validation Parameters
 validation_runs = 30;
 holdout_portion = 0.60;
 K = 5;
+ss_portion = 0.50;
+
+[D, F, L, num_U] = data_read(dataset, 'descend', ss_portion);
 
 %Random Feature Selection (LDA, Holdout)
 %rand_n_trials = 150;
