@@ -8,7 +8,7 @@ validation_keyval   = 2;            % 1 = Holdout, 2 = K-Fold
 holdout_portion     = 0.60;         % Only used if Holdout selected
 K                   = 5;            % Only used if K-Fold selected
 sort_order          = 'descend';    % 'ascend' or 'descend'
-method_keyval       = 2;            % 1 = LDA, 2 = ANN, 3 = SVM, 4 = RF
+method_keyval       = 1;            % 1 = LDA, 2 = ANN, 3 = SVM, 4 = RF
 dataset_keyval      = 1;            % 1 = Arrhythmia, 2 = Schizophrenia, 3 = Epilepsy
 fitline             = false;        % Place a line of best fit on the final plots
 
@@ -19,7 +19,7 @@ plot_type_keyval    = 2;            % 1 = ECA/D_mean, 2 = ECA/SSP
 n_select            = 25;           % Number of features to select
 
 % Subsampling Parameters
-rnd_ssp             = true;         % Use random ssp values?
+rnd_ssp             = false;        % Use random ssp values?
 min_samples         = 10;           % Minimum sample size to test, should be >= K
 if ~rnd_ssp
     ssp_set         = [1.00, 0.50, 0.25, 0.10, 0.05, 0.025];
@@ -113,16 +113,21 @@ D_mean = mean(D(F_idx));
 
 %% Best Feature Selection with Varying Sample Size KFold
 
-%Generate the set of subsampling portions
-ssp_set = rand(1,n_trials);
-ssp_replace = find(ssp_set < (min_samples / size(L,1)));
-
-%Replace any of the ssp values that reduce the sample size below minimum
-while isempty(ssp_replace)
-    ssp_set(ssp_replace) = rand(1,size(ssp_replace,2));
+if rnd_ssp
+    %Generate the set of subsampling portions
+    ssp_set = rand(1,n_trials);
     ssp_replace = find(ssp_set < (min_samples / size(L,1)));
-end
 
+    %Replace any of the ssp values that reduce the sample size below minimum
+    while ~isempty(ssp_replace)
+        ssp_set(ssp_replace) = rand(1,size(ssp_replace,2));
+        ssp_replace = find(ssp_set < (min_samples / size(L,1)));
+    end
+else
+   ssp_set = linspace(min_samples / size(L,1), 1.0, n_trials); 
+end
+    
+    
 %Generate the subsampling selections
 S_idx = arrayfun(@(i) subsample(L, ssp_set(i)), (1:n_trials), 'UniformOutput', false);
 
