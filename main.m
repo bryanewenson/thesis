@@ -3,13 +3,13 @@ clear;
 %% Parameters
 % General Parameters
 n_trials            = 150;
-validation_runs     = 150;
+validation_runs     = 100;
 validation_keyval   = 2;            % 1 = Holdout, 2 = K-Fold
 holdout_portion     = 0.60;         % Only used if Holdout selected
 K                   = 5;            % Only used if K-Fold selected
 sort_order          = 'descend';    % 'ascend' or 'descend'
-method_keyval       = 1;            % 1 = LDA, 2 = ANN, 3 = SVM, 4 = RF
-dataset_keyval      = 1;            % 1 = Arrhythmia, 2 = Schizophrenia, 3 = Epilepsy
+method_keyval       = 5;            % 1 = LDA, 2 = ANN, 3 = SVM, 4 = RF, 5 = CNN
+dataset_keyval      = 4;            % 1 = Arrhythmia, 2 = Schizophrenia, 3 = Epilepsy, 4 = MNIST
 fitline             = false;        % Place a line of best fit on the final plots
 
 % Plotting Parameters
@@ -20,7 +20,7 @@ n_select            = 25;           % Number of features to select
 
 % Subsampling Parameters
 rnd_ssp             = false;        % Use random ssp values?
-min_samples         = 10;           % Minimum sample size to test, should be >= K
+min_samples         = 100;           % Minimum sample size to test, should be >= K
 if ~rnd_ssp
     ssp_set         = [1.00, 0.50, 0.25, 0.10, 0.05, 0.025];
     n_experiments = size(ssp_set,2);
@@ -47,7 +47,7 @@ end
 clear path_cells;
 
 %Determines the name of the selected dataset
-dataset_names = ["Arrhythmia", "Schizophrenia", "Epilepsy"];
+dataset_names = ["Arrhythmia", "Schizophrenia", "Epilepsy", "MNIST"];
 dataset = dataset_names(dataset_keyval);
 
 %Ensures that the dataset can be found by Matlab
@@ -59,7 +59,7 @@ else
 end
 
 %Determines the name and handle of the selected ML method
-method_names = ["LDA", "ANN" ,"SVM", "RF"];
+method_names = ["LDA", "ANN" ,"SVM", "RF", "CNN"];
 M_name = method_names(method_keyval);
 M = str2func(sprintf('%s_predict', lower(M_name)));
 
@@ -83,16 +83,20 @@ end
 %[F_idx, D_mean] = fs_rand(n_useful, D, n_trials, n_select);
     
 %Best Feature Selection (By Effect Size)
-F_idx = 1:n_select;
-D_mean = mean(D(F_idx));
+%F_idx = 1:n_select;
+%D_mean = mean(D(F_idx));
 
 %Incremental Feature Selection *** WIP ***
 
 %Sliding Window Feature Selection (By Effect Size) *** WIP *** 
 %F_idx = fs_wind(n_useful, D, window_sz);
 
-%No Feature Selection (All Features Used)
+%Only Useful Features
 %F_idx = 1:n_useful;
+
+%No Feature Selection (All Features Used)
+[D, F, L, n_useful] = data_read_raw(dataset);
+F_idx = 1:n_useful;
 
 %% Random Feature Selection (LDA, Holdout)
 %rand_n_trials = 150;
@@ -127,11 +131,10 @@ else
    ssp_set = linspace(min_samples / size(L,1), 1.0, n_trials); 
 end
     
-    
 %Generate the subsampling selections
 S_idx = arrayfun(@(i) subsample(L, ssp_set(i)), (1:n_trials), 'UniformOutput', false);
 
-[results(1).EC_avg, results(1).test_acc, results(1).train_acc, results(1).CV, results(1).DCV] = arrayfun(@(t_idx) kfold(F(cell2mat(S_idx(t_idx)),F_idx), L(cell2mat(S_idx(t_idx))), validation_runs, K, M), (1:n_trials));
+[results(1).EC_avg, results(1).test_acc, results(1).train_acc, results(1).CV, results(1).DCV] = arrayfun(@(t_idx) kfold (F(cell2mat(S_idx(t_idx)),F_idx), L(cell2mat(S_idx(t_idx))), validation_runs, K, M), (1:n_trials));
 results(1).ssp = ssp_set;
 
 %% Random Feature Selection (LDA, KFold)
