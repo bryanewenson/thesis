@@ -1,4 +1,4 @@
-function [train_pred, test_pred] = cnn_predict(training_set, training_labels, testing_set)
+function [train_pred, test_pred] = predict_cnn(training_set, training_labels, testing_set)
 
     image_width = sqrt(size(training_set,2));
     training_set = reshape(training_set', image_width, image_width, 1, size(training_set,1));
@@ -6,8 +6,15 @@ function [train_pred, test_pred] = cnn_predict(training_set, training_labels, te
     
     layers = [ ...
         imageInputLayer([28 28 1])
-        convolution2dLayer(12,25)
-        reluLayer
+        convolution2dLayer(5, 6, 'Padding', 'same')
+        tanhLayer
+        averagePooling2dLayer(2, 'Stride', 2)
+        convolution2dLayer(5,16)
+        tanhLayer
+        averagePooling2dLayer(2, 'Stride', 2)
+        convolution2dLayer(5,120)
+        tanhLayer
+        fullyConnectedLayer(84)
         fullyConnectedLayer(2)
         softmaxLayer
         classificationLayer ];
@@ -16,7 +23,6 @@ function [train_pred, test_pred] = cnn_predict(training_set, training_labels, te
 
     net = trainNetwork(training_set, categorical(training_labels), layers, options);
 
-    
     train_pred = predict(net, training_set);
     train_pred = (vec2ind(train_pred') - 1)';
 

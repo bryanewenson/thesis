@@ -1,38 +1,153 @@
-clear;
-
+function results = main(varargin)
 %% Parameters
-% General Parameters
+%{    
+** GENERAL PARAMETERS **
+- n_trials: The number of times to repeat the desired experiments. Note
+that this differs from the number of validation runs to perform. This
+amount affects how many times the entire validation process is repeated
+from scratch, usually with parameter being varied each time.  
+
+NOTE: The following can all be specified as function parameters in the 
+order that they appear here. Unless specified otherwise, they can only be a
+a single integer. The values here will be used if not passed as parameters.
+
+- method_keyval: Numeric value representing which classifier type is being
+selected. Several methods can be used in one instance(though they will not
+execute simultaneously) by providing an array of several values. The values
+are:
+    - 1 = Linear Discriminant Analysis
+    - 2 = Aritificial Neural Network
+    - 3 = Support Vector Machine
+    - 4 = Random Forest
+    - 5 = Convolutional Neural Network
+
+- dataset_keyval: This value determines the dataset(s) to use for this
+experiment. Several can be selected by providing an array.  The values are:
+    - 1 = Arrhythmia, 2 = Schizophrenia, 3 = MNIST, 4 = Abalone
+    - 5 = Autism, 6 = Banknote, 7 = Diabetes, 8 = Liver, 9 = Parkinsons
+    - 10 = Sonar, 11 = SPECT, 12 = Transfusion, 13 = Waveform, 14 = Wine
+
+- fs_keyval: This selection governs the method of feature selection.
+Descriptions of the different methods are in the associated paper. The 
+values are:
+    - 1 = Random 
+    - 2 = Top
+    - 3 = Climb
+    - 0 = None
+
+- plot_type_keyval: This value determines which data is plotted at the end
+of the function. The values are:
+    -1 = Testing/Training accuracy over the indices of the underlying
+    features.
+    -2 = Difference between training/testing accuracy over the average
+    effect size of the underlying features.
+    -3 = Average error consistency over the average effect size of the
+    underlying features. 
+    -4 = Average error consistency and testing accuracy over the
+    subsampling portion. 
+    -0 = No plot
+
+- valid_keyval: This determines the validation method. The values are:
+    -1 = Holdout
+    -2 = K-Fold
+%}
+
 n_trials            = 150;
-validation_runs     = 100;
-validation_keyval   = 2;            % 1 = Holdout, 2 = K-Fold
-holdout_portion     = 0.60;         % Only used if Holdout selected
-K                   = 5;            % Only used if K-Fold selected
-sort_order          = 'descend';    % 'ascend' or 'descend'
-method_keyval       = 5;            % 1 = LDA, 2 = ANN, 3 = SVM, 4 = RF, 5 = CNN
-dataset_keyval      = 4;            % 1 = Arrhythmia, 2 = Schizophrenia, 3 = Epilepsy, 4 = MNIST
-fitline             = false;        % Place a line of best fit on the final plots
+method_keyval       = [5];
+dataset_keyval      = [3];
+fs_keyval           = 0;
+plot_type_keyval    = 0;
+valid_keyval        = 2;
+ 
+%{
+** VALIDATION PARAMETERS **
+- valid_rand: Setting to false will cause each trial to have the exact 
+same samples belonging to the testing and training sets respectively.
+- valid_runs: The number of times to repeat the classification process with
+different distribution of training and testing sets. If the K-Fold method
+is selected, the number of runs is reduced by a factor equal to K. 
+- holdout_ratio: If holdout is selected, this is the portion of the samples
+reserved for the training set. 
+- K: Value of K in the K-Fold method.
+%}
 
-% Plotting Parameters
-plot_type_keyval    = 2;            % 1 = ECA/D_mean, 2 = ECA/SSP            
+valid_rand          = true;
+valid_runs          = 30;
+holdout_ratio       = 0.60;
+K                   = 5;
 
-% Feature Selection Parameters
-n_select            = 25;           % Number of features to select
+%{
+** FEATURE SELECTION PARAMETERS **
+- sort_order: The order in which the features are sorted according to
+effect size. 
+- n_select: The number of features to select from the feature set. This has
+different effects based on the chosen fs method. 
+NOTE: The rest are explained in detail within the associated thesis. 
+%}
+sort_order          = 'descend';
+n_select            = 20;           % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
+n_shift             = 2;            % Number of features to shift away from the beginning of the potential feature set
+perf_vfs            = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
+trim_threshold      = 2;            % If between 0 and 1, enforces a threshold on the inclusion of features in the dataset. Any measurement that has a single value with a relative frequency higher than this threshold will be removed from the feature set.
+trim_esnan          = false;
 
-% Subsampling Parameters
+%{
+** SUBSAMPLING PARAMETERS **
+- perf_ssp: Set true to perform subsampling. 
+- rnd_ssp: Set true to randomly generate SSP values. Process explained in
+depth within thesis.
+- strict_subsampling: Set to true to enforce strict subsampling, explained
+within thesis along with ssp_max and min_samples. 
+- full_effect_size: If true, calculate effect size of features before
+subsampling. Otherwise done after subsampling. 
+%}
+perf_ssp            = true;        % Perform subsampling?
 rnd_ssp             = false;        % Use random ssp values?
-min_samples         = 100;           % Minimum sample size to test, should be >= K
-if ~rnd_ssp
-    ssp_set         = [1.00, 0.50, 0.25, 0.10, 0.05, 0.025];
-    n_experiments = size(ssp_set,2);
-else
-    n_experiments = 1;
+strict_subsampling  = true;         % Restrict all subsampling to an initial selection of an ssp_max subsample. 
+ssp_max             = 1.0;         % The largest allowable subsampling portion
+min_samples         = 100;          % Minimum sample size to test, should be >= K
+full_effect_size    = true;         % Use entire sample set for effect size calculations?
+                                    
+%% Argument Handling
+if nargin ~= 0 && nargin ~= 8 && nargin ~= 3 && nargin ~= 6
+    disp("Invalid number of input arguments to function Main.");
+    return
+    %% ./
 end
 
-full_effect_size    = true;         % Use entire sample set for effect size calculations?
+proc_idx = 0;
+proc_trials = 1:n_trials;
+tag = "def"; %%TAG TO IDENTIFY DIFFERENT EXPERIMENTS
+
+if nargin == 8
+    proc_idx = varargin{1};
+    proc_trials = varargin{2};
+    tag = varargin{3};
+    method_keyval = varargin{4};
+    dataset_keyval = varargin{5};
+    fs_keyval = varargin{6};
+    plot_type_keyval = varargin{7};
+    valid_keyval = varargin{8};
+elseif nargin == 5
+    method_keyval = varargin{1};
+    dataset_keyval = varargin{2};
+    fs_keyval = varargin{3};
+    plot_type_keyval = varargin{4};
+    valid_keyval = varargin{5};
+elseif nargin == 3
+    proc_idx = varargin{1};
+    proc_trials = varargin{2};
+    tag = varargin{3};
+
+    if max(proc_trials) > n_trials
+        disp("Error: No proc_trials values allowed above n_trials");
+        return
+    end
+end
 
 %% Preprocessing
 
-%Makes any necessary additions to the Matlab search path
+%Adjust the Matlab execution path as necessary
 codepath = mfilename('fullpath');
 codepath = codepath(1:end-5);
 datapath = strcat(codepath,'\Data');
@@ -46,122 +161,223 @@ if ~any(strcmpi(codepath, path_cells))
 end
 clear path_cells;
 
-%Determines the name of the selected dataset
-dataset_names = ["Arrhythmia", "Schizophrenia", "Epilepsy", "MNIST"];
-dataset = dataset_names(dataset_keyval);
+%Determine the name of the selected dataset
+n_datasets = size(dataset_keyval,2);
+dataset_names = ["Arrhythmia", "Schizophrenia", "MNIST", ...
+    "Abalone", "Autism", "Banknote", "Diabetes", "Liver", "Parkinsons", ...
+    "Sonar", "SPECT", "Transfusion", "Waveform", "Wine"];
 
-%Ensures that the dataset can be found by Matlab
-if exist(sprintf("%s.mat", dataset), 'file')
-    [D, F, L, n_useful] = data_read(dataset, sort_order);
-else    
-    disp("Dataset cannot be found. Make sure its directory is added to path.")
+%Determine the name and handle of the selected ML method
+n_methods = size(method_keyval,2);
+method_names = ["LDA", "ANN" ,"SVM", "RF", "CNN"];
+M_name = method_names(method_keyval);
+
+%Determine the number of experiments being performed
+n_experiments = n_methods * n_datasets;
+
+%Generate the appropriate string/handle for the validation method.
+validation_names = ["holdout", "kfold"];
+V_handle = str2func(sprintf('valid_%s', validation_names(valid_keyval)));
+validation_names = [sprintf("%0.1f%% Holdout", 100 * holdout_ratio), ...
+    sprintf("%d Fold", K)];
+V_name = validation_names(valid_keyval);
+
+%Adjust validation parameters based on chosen validation method
+if valid_keyval == 1
+    valid_param = holdout_ratio;
+else
+    valid_param = K;
+    valid_runs = round(valid_runs / K);
+end
+
+%Adjust perf_vfs if necessary
+if fs_keyval == 2 || fs_keyval == 0
+    perf_vfs = false;
+elseif fs_keyval == 3
+    perf_vfs = true;
+end
+
+%Disallow the simultaneous use of SSP and VFS
+if perf_ssp && ((perf_vfs && fs_keyval == 1) || fs_keyval == 3)
+    disp("Error: This program does not support simultaneous ssp and vfs");
     return;
 end
 
-%Determines the name and handle of the selected ML method
-method_names = ["LDA", "ANN" ,"SVM", "RF", "CNN"];
-M_name = method_names(method_keyval);
-M = str2func(sprintf('%s_predict', lower(M_name)));
+%% Experiment
 
-%Generates the appropriate string for the selected validation settings
-validation_names = [sprintf("%0.1f%% Holdout", 100 * holdout_portion), sprintf("%d Fold", K)];
-V_name = validation_names(validation_keyval);
+idx_exp = 1;
+for idx_dataset = 1:n_datasets
 
-%Adjust the number of validation runs if KFold is selected
-if validation_keyval == 2
-    validation_runs = validation_runs / K;
-end
+    dataset = dataset_names(dataset_keyval(idx_dataset));
 
-%Initialize the results structure
-if ~exist('results', 'var')
-        results = init_results(plot_type_keyval, n_experiments, n_trials, n_select);
-end
-
-%% Feature Selection
-
-%Random Feature Selection
-%[F_idx, D_mean] = fs_rand(n_useful, D, n_trials, n_select);
-    
-%Best Feature Selection (By Effect Size)
-%F_idx = 1:n_select;
-%D_mean = mean(D(F_idx));
-
-%Incremental Feature Selection *** WIP ***
-
-%Sliding Window Feature Selection (By Effect Size) *** WIP *** 
-%F_idx = fs_wind(n_useful, D, window_sz);
-
-%Only Useful Features
-%F_idx = 1:n_useful;
-
-%No Feature Selection (All Features Used)
-[D, F, L, n_useful] = data_read_raw(dataset);
-F_idx = 1:n_useful;
-
-%% Random Feature Selection (LDA, Holdout)
-%rand_n_trials = 150;
-%rand_n_select = 30;
-%[rand_h_F_idx, rand_h_D_mean] = fs_rand(num_U, D, rand_n_trials, rand_n_select);
-%[rand_h_EC, rand_h_test_acc, rand_h_train_acc, rand_h_CV, rand_h_DCV, rand_h_full_EC, rand_h_full_test_acc] = arrayfun(@(fs_idx) lda_holdout(F(:,rand_h_F_idx(fs_idx,:)), L, validation_runs, holdout_portion), (1:rand_n_trials));
-
-%% Random Feature Selection with Varying Sample Size KFold
-
-%for i = 1:n_experiments
-%    [D, F, L, num_U] = data_read(dataset, sort_order, ssp_set(i));
-%    
-%    [selected_idx, results(i).D_mean] = fs_rand(num_U, D, n_trials, n_select);
-%    results(i).F_idx = selected_idx;
-%    
-%    [results(i).EC_avg, results(i).test_acc, results(i).train_acc, results(i).CV, results(i).DCV] = arrayfun(@(fs_idx) kfold(F(:,selected_idx(fs_idx,:)), L, validation_runs, K, M), (1:n_trials));    
-%end
-
-%% Best Feature Selection with Varying Sample Size KFold
-
-if rnd_ssp
-    %Generate the set of subsampling portions
-    ssp_set = rand(1,n_trials);
-    ssp_replace = find(ssp_set < (min_samples / size(L,1)));
-
-    %Replace any of the ssp values that reduce the sample size below minimum
-    while ~isempty(ssp_replace)
-        ssp_set(ssp_replace) = rand(1,size(ssp_replace,2));
-        ssp_replace = find(ssp_set < (min_samples / size(L,1)));
+    %Ensures that the dataset can be found by Matlab
+    if ~(exist(sprintf("%s.mat", dataset), 'file'))
+        disp("Data cannot be found. Make sure its directory is on path.")
+        return;
     end
-else
-   ssp_set = linspace(min_samples / size(L,1), 1.0, n_trials); 
-end
+
+    %note: During SSP, might need to adjust D
+    [D, F, L, N] = data_read(dataset, trim_threshold, trim_esnan);
+    if n_select == 0 || n_select > N - n_shift
+        n_select = N - n_shift;
+    end
     
-%Generate the subsampling selections
-S_idx = arrayfun(@(i) subsample(L, ssp_set(i)), (1:n_trials), 'UniformOutput', false);
+    %Ensure that n_trials matches the number of features to select
+    if fs_keyval == 3
+        n_trials = n_select;
+        proc_trials = n_select;
+    end
+    
+    %Perform feature selection
+    switch fs_keyval
+        case 1      % Random FS
+            [F_idx, D_mean] = fs_rand(D, n_select, n_trials);
+        
+        case 2      % Top FS 
+            [F_idx, D_mean] = fs_top(D, n_select, sort_order);
+            
+        case 3      % Climb FS
+            [F_idx, D_mean] = fs_climb(D, n_select, n_shift, sort_order);
 
-[results(1).EC_avg, results(1).test_acc, results(1).train_acc, results(1).CV, results(1).DCV] = arrayfun(@(t_idx) kfold (F(cell2mat(S_idx(t_idx)),F_idx), L(cell2mat(S_idx(t_idx))), validation_runs, K, M), (1:n_trials));
-results(1).ssp = ssp_set;
+        otherwise   % No FS
+            F_idx = 1:N;
+            D_mean = mean(D);
+    end
+    
+    %need a matrix F_idx where each row contains the chosen features for
+    %that trial
+    
+    if perf_ssp
+        if rnd_ssp
+            %Generate the set of subsampling portions
+            ssp_set = rand(1,n_trials);
+            ssp_replace = [find(ssp_set < (min_samples / size(L,1))), ...
+                find(ssp_set > ssp_max)];
 
-%% Random Feature Selection (LDA, KFold)
-%rand_n_trials = 100;
-%rand_n_select = 20;
-%validation_runs = validation_runs / K;
-%[F_idx, D] = fs_rand(num_U, D, rand_n_trials, rand_n_select);
-%[EC, test_acc, train_acc, CV, DCV] = arrayfun(@(fs_idx) lda_holdout(F(:,F_idx(fs_idx,:)), L, validation_runs, holdout_portion), (1:rand_n_trials));
+            %Replace any of the ssp values that bring the ssp out of range
+            while ~isempty(ssp_replace)
+                ssp_set(ssp_replace) = rand(1,size(ssp_replace,2));
+                ssp_replace = [find(ssp_set < (min_samples/size(L,1))),...
+                    find(ssp_set > ssp_max)];
+            end
+        else
+            ssp_min = min_samples / size(L,1);
+            if ssp_min > ssp_max
+                disp("Error: SSP_min > SSP_max");
+                return;
+            end
+            ssp_set = linspace(min_samples / size(L,1), ssp_max, n_trials); 
+        end
+        
+        if strict_subsampling
+            rest_subsample = subsample(L, ssp_max);
+            L_rest = L(rest_subsample);
+            F_rest = F(rest_subsample, :);
+            %Normalize the ssp_set since the dataset is already subsampled.
+            ssp_set = ssp_set / ssp_max;
+        else
+            L_rest = L;
+            F_rest = F;
+        end
+        
+        %Generate the subsampling selections
+        S_idx = arrayfun(@(q) subsample(L_rest, ssp_set(q)), ...
+            (1:n_trials), "UniformOutput", false);
+        results(idx_exp).ssp = ssp_set;
+    end 
+    
+    for idx_method = 1:n_methods    
+        %Get handle to appropriate ML method
+        method = M_name(idx_method);
+        M = str2func(sprintf('predict_%s', lower(method)));
 
-%% Incremental Feature Ranges, Starting at High Effect Size (LDA)
-%min = 1;
-%max = num_useful_features;
-%[b_range_EC, b_range_test_acc, b_range_train_acc, b_range_CV, b_range_DCV] = arrayfun(@(num_f) lda_holdout(F(:,min:min + num_f - 1), L, validation_runs, holdout_portion), (1:max - min + 1));
+        results(idx_exp).dataset = dataset;
+        results(idx_exp).method = method;
 
-%% Incremental Feature Ranges, Starting at Low Effect Size (LDA)
-%min = 1;
-%max = num_useful_features;
-%[w_range_EC, w_range_test_acc, w_range_train_acc, w_range_CV, w_range_DCV] = arrayfun(@(num_f) lda_holdout(F(:,num_U - num_f + 1:num_U), L, validation_runs, holdout_portion), (1:max - min + 1));
+        %Evaluate
+        if perf_ssp
+            [results(idx_exp).test_acc_avg, ...
+                results(idx_exp).test_acc_std, ...
+                results(idx_exp).train_acc_avg, ...
+                results(idx_exp).train_acc_std, ...
+                results(idx_exp).diff_acc_avg, ...
+                results(idx_exp).diff_acc_std, ...
+                results(idx_exp).AEC, ...
+                results(idx_exp).EC_std, ...
+                results(idx_exp).ACS, ...
+                results(idx_exp).DACS]...
+                = arrayfun(@(t_idx) V_handle ...
+                (F_rest(cell2mat(S_idx(t_idx)),F_idx), ...
+                L_rest(cell2mat(S_idx(t_idx))), valid_runs, valid_param,...
+                M, valid_rand), (proc_trials));
+        
+        elseif perf_vfs
+            if fs_keyval == 3
+                n_feat= arrayfun(@(idx) sum(F_idx(idx,:)~=0),(1:n_trials));
+                F_end = arrayfun(@(idx) sum(n_feat(1:idx)), 1:n_trials);
+                F_start = [1,F_end(1:end-1) + 1];
+                F_idx = reshape(F_idx',[1,n_select * n_trials]);
+                F_idx(F_idx == 0) = [];
+            else
+                F_end = ((1:n_trials) .* n_select);
+                F_start = (0:n_trials-1) .* n_select + 1;
+                F_idx = reshape(F_idx',[1,n_select * n_trials]);
+            end
+               
+            [results(idx_exp).test_acc_avg, ...
+                results(idx_exp).test_acc_std, ...
+                results(idx_exp).train_acc_avg, ...
+                results(idx_exp).train_acc_std, ...
+                results(idx_exp).diff_acc_avg, ...
+                results(idx_exp).diff_acc_std, ...
+                results(idx_exp).AEC, ...
+                results(idx_exp).EC_std, ...
+                results(idx_exp).ACS, ...
+                results(idx_exp).DACS]...
+                = arrayfun(@(t_idx) V_handle ...
+                (F(:,F_idx(F_start(t_idx):F_end(t_idx))), L, valid_runs,...
+                valid_param, M, valid_rand), (proc_trials));
+        else
+            [results(idx_exp).test_acc_avg, ...
+                results(idx_exp).test_acc_std, ...
+                results(idx_exp).train_acc_avg, ...
+                results(idx_exp).train_acc_std, ...
+                results(idx_exp).diff_acc_avg, ...
+                results(idx_exp).diff_acc_std, ...
+                results(idx_exp).AEC, ...
+                results(idx_exp).EC_std, ...
+                results(idx_exp).ACS, ...
+                results(idx_exp).DACS]...
+                = arrayfun(@(t_idx) V_handle (F(:,F_idx), L, valid_runs,...
+                valid_param, M, valid_rand), (proc_trials));
+        end
+        
+        %Save workspace with unique identifier
+        c = fix(clock);
+        save(sprintf("Results[%s][%d][%s_%s][%d-%d_%d-%d-%d]", tag, ...
+            proc_idx,dataset,M_name(idx_method),c(2),c(3),c(4),c(5),c(6)));
 
-%% Plot Results
+        %Plot Results
+        if plot_type_keyval ~= 0
+            plot_info = get_plot_info(plot_type_keyval, results, ...
+                dataset, V_name, M_name(idx_method)); 
 
-plot_info = get_plot_info(plot_type_keyval, results, dataset, V_name, M_name);
+            if ~plot_info.force_lim
+                plot_info.x_min = min(plot_info.x);
+                plot_info.x_max = max(plot_info.x);
+                plot_info.y_min_left = min(plot_info.y_left);
+                plot_info.y_max_left = max(plot_info.y_left);
 
-plot_info.x_min = min(arrayfun(@(i) min(plot_info.x(i, :)), (1:n_experiments)));
-plot_info.x_max = max(arrayfun(@(i) max(plot_info.x(i, :)), (1:n_experiments)));
+                if isfield(plot_info, 'y_right')
+                    plot_info.y_min_right = min(plot_info.y_right);
+                    plot_info.y_max_right = max(plot_info.y_right);
 
-plot_info.y_min = min(arrayfun(@(i) min(plot_info.y(i, :)), (1:n_experiments)));
-plot_info.y_max = max(arrayfun(@(i) max(plot_info.y(i, :)), (1:n_experiments)));
-
-fig = plot_results(n_experiments, plot_info, fitline); 
+                end
+            end
+            
+            figures(idx_exp) = plot_results(n_experiments, plot_info);
+        end
+        
+        idx_exp = idx_exp + 1;
+    end
+end

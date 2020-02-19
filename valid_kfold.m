@@ -1,6 +1,6 @@
-function [EC_avg, avg_test_acc, avg_train_acc, CV, DCV] = kfold(features, labels, validation_runs, K, M_handle)
+function [test_acc_avg, test_acc_std, train_acc_avg, train_acc_std, diff_acc_avg, diff_acc_std, AEC, EC_std, ACS, DACS] = valid_kfold(features, labels, validation_runs, K, M_handle, is_random)
 
-    num_samples = size(features, 1)
+    num_samples = size(features, 1);
     group_size = round(num_samples / K);
     
     group_train_acc = zeros(1,K);
@@ -10,10 +10,15 @@ function [EC_avg, avg_test_acc, avg_train_acc, CV, DCV] = kfold(features, labels
     test_acc = zeros(1,validation_runs);
     
     error_set = zeros(validation_runs, num_samples + 1);
+    diff_acc = zeros(1,validation_runs);
+    rnd_indices = 1:num_samples;
     
     for v = 1:validation_runs
-        rnd_indices = randperm(num_samples);
-        rnd_features = features(rnd_indices,:);
+        if is_random
+            rnd_indices = randperm(num_samples);
+        end
+        
+        rnd_features = features(rnd_indices,:,:);
         rnd_labels = labels(rnd_indices);
         
         num_error = 0;
@@ -37,12 +42,8 @@ function [EC_avg, avg_test_acc, avg_train_acc, CV, DCV] = kfold(features, labels
             testing_set = rnd_features(testing_indices,:);
             testing_labels = rnd_labels(testing_indices);
 
-            if nargin == 6
-                [group_train_pred, group_test_pred] = M_handle(training_set, training_labels, testing_set, M_param);
-            else
-                [group_train_pred, group_test_pred] = M_handle(training_set, training_labels, testing_set);
-            end
-                
+            [group_train_pred, group_test_pred] = M_handle(training_set, training_labels, testing_set);
+
             group_train_error = abs(training_labels - group_train_pred);
             group_train_acc(g) = (training_samples - sum(group_train_error)) / training_samples;
 
@@ -58,16 +59,18 @@ function [EC_avg, avg_test_acc, avg_train_acc, CV, DCV] = kfold(features, labels
     
         test_acc(v) = 100 * mean(group_test_acc);
         train_acc(v) = 100 * mean(group_train_acc);
-        diff_acc = train_acc - test_acc;
+        diff_acc(v) = train_acc(v) - test_acc(v);
         
     end
     
-    avg_test_acc = mean(test_acc);
-    avg_train_acc = mean(train_acc);
+    test_acc_avg = mean(test_acc);
+    test_acc_std = std(test_acc);
+    train_acc_avg = mean(train_acc);
+    train_acc_std = std(train_acc);
+    diff_acc_avg = mean(diff_acc);
+    diff_acc_std = std(diff_acc);
     
-    EC_avg = error_consistency(error_set);
-    CV = 0;
-    DCV = 0;
-    %[CV, DCV] = classifier_value(test_acc, diff_acc, labels);
+    [AEC, EC_std] = get_AEC(error_set);
+    [ACS, DACS] = get_ACS(test_acc_avg, diff_acc_avg, labels);
     
 end

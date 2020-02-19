@@ -1,14 +1,13 @@
-function [F, D] = fs_rand(num_useful_features, D, num_trials, num_select)
-
-    f_selections = zeros(num_trials, num_select);
-    d_means = zeros(1,num_trials);
-
-    for t = 1:num_trials
-        f_selections(t,:) = randsample(num_useful_features, num_select);
-        d_means(t) = mean(D(f_selections(t,:)));
+function [F_idx, D_mean] = fs_rand(D, n_select, n_trials)
+    
+    n_features = size(D,1);
+    
+    F_idx = zeros(n_trials, n_select);
+    D_mean = zeros(n_trials,1);
+    
+    for i = 1:n_trials
+        F_idx(i,:) = randi(n_features,[1,n_select]);
+        D_mean(i) = mean(D(F_idx(i,:)));
     end
-
-    F = f_selections;
-    D = d_means;    
     
 end

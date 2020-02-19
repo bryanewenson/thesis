@@ -1,4 +1,4 @@
-function [train_pred, test_pred] = ann_predict(training_set, training_labels, testing_set)
+function [train_pred, test_pred] = predict_ann(training_set, training_labels, testing_set)
 
     testing_set = testing_set';
     training_set = training_set';

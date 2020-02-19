@@ -1,10 +1,7 @@
-function EC_avg = error_consistency(error_sets)
+function [AEC, EC_std] = get_AEC(error_sets)
 
     num_sets = size(error_sets,1);
-    
     EC = zeros(num_sets, num_sets);
-    EC_sum = 0;
-    n_nan = 0;
     
     for i = 1:num_sets
         EC(i,i) = 1.0;
@@ -15,15 +12,11 @@ function EC_avg = error_consistency(error_sets)
             
             EC_tmp = (size(err_intersection,2)-1) / (size(err_union, 2) - 1);
             
-            %Keep track of how many have been excluded
-            
-            if size(err_union, 2) == 1
-                %Handles the case of two empty error sets
+            if size(err_union, 2) == 1  %Two empty error sets
+                EC(i,j) = 1;
+            elseif EC_tmp == 0          %Zero EC
                 EC(i,j) = -1;
-                n_nan = n_nan + 1;
             else
-                %Normal Case
-                EC_sum = EC_sum + EC_tmp;
                 EC(i,j) = EC_tmp;
             end
                
@@ -32,11 +25,17 @@ function EC_avg = error_consistency(error_sets)
     end
     
     %Summarize EC
-    mat_size = ((num_sets * (num_sets - 1)) / 2) - n_nan;
-    EC_avg = 100 * (EC_sum / mat_size);
+    vect_EC = 100 * reshape(tril(EC,-1), 1, num_sets * num_sets);
+    vect_EC(vect_EC == 0) = [];
+    vect_EC(vect_EC == -100) = 0;
+    EC_std = std(vect_EC);
+    AEC = mean(vect_EC);
     
-    if isnan(EC_avg)
+    if isnan(AEC)
         disp("EC_avg nan");
+    end
+    if AEC <= 0
+       disp("Negative"); 
     end
     
 end
