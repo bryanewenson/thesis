@@ -1,5 +1,18 @@
-function plot_info = get_plot_info(plot_type_keyval, results, dataset, V_name, M_name)
+function plot_info = get_plot_info(plot_type_keyval, results, varargin)
 
+    if nargin == 0
+        dataset = results.dataset;
+        V_name = results.validation;
+        M_name = results.method;
+    elseif nargin == 3
+        dataset = varargin{1};
+        V_name = results.validation{2};
+        M_name = results.method{3};
+    else
+        msg = "Invalid number of arguments to function";
+        error(msg);
+    end
+    
 %NEED TO FINISH THIS, NOT FINISHED FIRST CASE
 
     switch plot_type_keyval

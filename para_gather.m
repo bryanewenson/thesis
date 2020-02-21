@@ -3,6 +3,16 @@ function full_results = para_gather(n_proc, tag)
     rf_dir = string(pwd) + '\' + "Results[" + tag + "]*";
     result_files = dir(rf_dir);
 
+    idx = zeros(1,n_proc);
+    for x = 1:n_proc
+        [begin,fin] = regexp(result_files(x).name, "\[\d+\]") ;
+        idx(x) = str2num(result_files(x).name(begin+1:fin-1));
+    end
+    
+    [~, order] = sort(idx);
+    result_files = result_files(order);
+    
+    disp("Processing " + result_files(1).name);
     load(result_files(1).name);
     full_results = results;
 

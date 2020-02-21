@@ -53,8 +53,8 @@ of the function. The values are:
 %}
 
 n_trials            = 150;
-method_keyval       = [5];
-dataset_keyval      = [3];
+method_keyval       = [1];
+dataset_keyval      = [1];
 fs_keyval           = 0;
 plot_type_keyval    = 0;
 valid_keyval        = 2;
@@ -112,12 +112,11 @@ full_effect_size    = true;         % Use entire sample set for effect size calc
 if nargin ~= 0 && nargin ~= 8 && nargin ~= 3 && nargin ~= 6
     disp("Invalid number of input arguments to function Main.");
     return
-    %% ./
 end
 
 proc_idx = 0;
 proc_trials = 1:n_trials;
-tag = "def"; %%TAG TO IDENTIFY DIFFERENT EXPERIMENTS
+tag = "def";
 
 if nargin == 8
     proc_idx = varargin{1};
@@ -293,6 +292,7 @@ for idx_dataset = 1:n_datasets
 
         results(idx_exp).dataset = dataset;
         results(idx_exp).method = method;
+        results(idx_exp).validation = V_name;
 
         %Evaluate
         if perf_ssp
@@ -359,23 +359,9 @@ for idx_dataset = 1:n_datasets
 
         %Plot Results
         if plot_type_keyval ~= 0
-            plot_info = get_plot_info(plot_type_keyval, results, ...
-                dataset, V_name, M_name(idx_method)); 
+            plot_info = get_plot_info(plot_type_keyval, results);
 
-            if ~plot_info.force_lim
-                plot_info.x_min = min(plot_info.x);
-                plot_info.x_max = max(plot_info.x);
-                plot_info.y_min_left = min(plot_info.y_left);
-                plot_info.y_max_left = max(plot_info.y_left);
-
-                if isfield(plot_info, 'y_right')
-                    plot_info.y_min_right = min(plot_info.y_right);
-                    plot_info.y_max_right = max(plot_info.y_right);
-
-                end
-            end
-            
-            figures(idx_exp) = plot_results(n_experiments, plot_info);
+            figures(idx_exp) = plot_results(plot_info, n_experiments);
         end
         
         idx_exp = idx_exp + 1;

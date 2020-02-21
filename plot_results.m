@@ -1,4 +1,26 @@
-function fig = plot_results(n_experiments, plot_info)
+function fig = plot_results(plot_info, varargin)
+
+    if nargin == 0
+        n_experiments = 1;
+    elseif nargin == 1
+        n_experiments = varargin{1};
+    else
+        msg = "Invalid number of arguments to function";
+        error(msg);
+    end
+    
+    if ~plot_info.force_lim
+        plot_info.x_min = min(plot_info.x);
+        plot_info.x_max = max(plot_info.x);
+        plot_info.y_min_left = min(plot_info.y_left);
+        plot_info.y_max_left = max(plot_info.y_left);
+
+        if isfield(plot_info, 'y_right')
+            plot_info.y_min_right = min(plot_info.y_right);
+            plot_info.y_max_right = max(plot_info.y_right);
+
+        end
+    end
 
     x_range = linspace(plot_info.x_min, plot_info.x_max, 100);
         
