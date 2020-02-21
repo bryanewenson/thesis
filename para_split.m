@@ -1,10 +1,13 @@
 
 %n_proc = 10;
 %per_proc = [25,25,20,20,15,15,10,10,5,5];
-n_proc = 2;
-per_proc = [5,10];
+%proc_trials = zeros(n_proc, max(per_proc));
+%tag = "newCNN";
+
+n_proc = 5;
+per_proc = [2,4,6,8,10];
 proc_trials = zeros(n_proc, max(per_proc));
-tag = "newCNN";
+tag = "test";
 
 y = 1;
 for z = 1:n_proc
@@ -21,4 +24,12 @@ for z = 1:n_proc
     call = "matlab -r main(" + z + "," + trials_str + ",'" + tag + "') &";
     system(call);
 end
+
+n_completed = size(dir(string(pwd) + '\' + "Results[" + tag + "]*"),1);
+
+while n_completed < n_proc
+    pause(1800);
+end
+
+results = para_gather(n_proc, tag);
 
