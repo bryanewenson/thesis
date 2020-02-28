@@ -54,10 +54,10 @@ of the function. The values are:
 
 n_trials            = 150;
 method_keyval       = [1];
-dataset_keyval      = [1];
-fs_keyval           = 0;
-plot_type_keyval    = 0;
-valid_keyval        = 2;
+dataset_keyval      = [1,2];
+fs_keyval           = 1;
+plot_type_keyval    = 2;
+valid_keyval        = 1;
  
 %{
 ** VALIDATION PARAMETERS **
@@ -72,7 +72,7 @@ reserved for the training set.
 %}
 
 valid_rand          = true;
-valid_runs          = 30;
+valid_runs          = 150;
 holdout_ratio       = 0.60;
 K                   = 5;
 
@@ -84,12 +84,13 @@ effect size.
 different effects based on the chosen fs method. 
 NOTE: The rest are explained in detail within the associated thesis. 
 %}
+
 sort_order          = 'descend';
-n_select            = 20;           % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
-n_shift             = 2;            % Number of features to shift away from the beginning of the potential feature set
+n_select            = 5;           % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
+n_shift             = 0;            % Number of features to shift away from the beginning of the potential feature set
 perf_vfs            = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
-trim_threshold      = 2;            % If between 0 and 1, enforces a threshold on the inclusion of features in the dataset. Any measurement that has a single value with a relative frequency higher than this threshold will be removed from the feature set.
-trim_esnan          = false;
+trim_threshold      = 1;            % If between 0 and 1, enforces a threshold on the inclusion of features in the dataset. Any measurement that has a single value with a relative frequency higher than this threshold will be removed from the feature set.
+trim_esnan          = true;
 
 %{
 ** SUBSAMPLING PARAMETERS **
@@ -101,7 +102,7 @@ within thesis along with ssp_max and min_samples.
 - full_effect_size: If true, calculate effect size of features before
 subsampling. Otherwise done after subsampling. 
 %}
-perf_ssp            = true;        % Perform subsampling?
+perf_ssp            = false;        % Perform subsampling?
 rnd_ssp             = false;        % Use random ssp values?
 strict_subsampling  = true;         % Restrict all subsampling to an initial selection of an ssp_max subsample. 
 ssp_max             = 1.0;         % The largest allowable subsampling portion
@@ -215,7 +216,7 @@ for idx_dataset = 1:n_datasets
         return;
     end
 
-    %note: During SSP, might need to adjust D
+    %TODO: RECALCULATE COHENS D AFTER SSP
     [D, F, L, N] = data_read(dataset, trim_threshold, trim_esnan);
     if n_select == 0 || n_select > N - n_shift
         n_select = N - n_shift;
@@ -290,9 +291,16 @@ for idx_dataset = 1:n_datasets
         method = M_name(idx_method);
         M = str2func(sprintf('predict_%s', lower(method)));
 
+        %Save significant parameters for each experiment
         results(idx_exp).dataset = dataset;
         results(idx_exp).method = method;
         results(idx_exp).validation = V_name;
+        results(idx_exp).D_mean = D_mean;
+        results(idx_exp).n_select = n_select;
+        
+        
+        results(1).D_mean = D_mean;
+        results(1).n_select = n_select;
 
         %Evaluate
         if perf_ssp
@@ -357,13 +365,18 @@ for idx_dataset = 1:n_datasets
         save(sprintf("Results[%s][%d][%s_%s][%d-%d_%d-%d-%d]", tag, ...
             proc_idx,dataset,M_name(idx_method),c(2),c(3),c(4),c(5),c(6)));
 
-        %Plot Results
-        if plot_type_keyval ~= 0
-            plot_info = get_plot_info(plot_type_keyval, results);
-
-            figures(idx_exp) = plot_results(plot_info, n_experiments);
-        end
-        
         idx_exp = idx_exp + 1;
+    end
+    
+    %Plot Results
+        
+    idx_exp = idx_exp - 1;
+    if plot_type_keyval ~= 0
+        figures = plot_results(plot_type_keyval, results, idx_exp);
+        
+        %for fig_idx = 1:idx_exp
+        %    plot_info(fig_exp) = get_plot_info(plot_type_keyval, results(fig_idx));
+        %    figures(fig_exp) = plot_results(plot_info(fig_exp), n_experiments);
+        %end
     end
 end
