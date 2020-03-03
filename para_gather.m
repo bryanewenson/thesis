@@ -15,22 +15,24 @@ function full_results = para_gather(n_proc, tag)
     disp("Processing " + result_files(1).name);
     load(result_files(1).name);
     full_results = results;
+    num_results = size(results,2);
+    
+    for y = 2:n_proc
+        disp("Processing " + result_files(y).name);
 
-    for x = 2:n_proc
-        disp("Processing " + result_files(x).name);
+        load(result_files(y).name);
 
-        load(result_files(x).name);
-
-        full_results.test_acc_avg = [full_results.test_acc_avg,results.test_acc_avg];
-        full_results.test_acc_std = [full_results.test_acc_std,results.test_acc_std];
-        full_results.train_acc_avg = [full_results.train_acc_avg,results.train_acc_avg];
-        full_results.train_acc_std = [full_results.train_acc_std,results.train_acc_std];
-        full_results.diff_acc_avg = [full_results.diff_acc_avg,results.diff_acc_avg];
-        full_results.diff_acc_std = [full_results.diff_acc_std,results.diff_acc_std];
-        full_results.AEC = [full_results.AEC,results.AEC];
-        full_results.EC_std = [full_results.EC_std,results.EC_std];
-        full_results.ACS = [full_results.ACS,results.ACS];
-        full_results.DACS = [full_results.DACS,results.DACS];
-
+        for x = 1:num_results
+            full_results(x).test_acc_avg = [full_results(x).test_acc_avg,results(x).test_acc_avg];
+            full_results(x).test_acc_std = [full_results(x).test_acc_std,results(x).test_acc_std];
+            full_results(x).train_acc_avg = [full_results(x).train_acc_avg,results(x).train_acc_avg];
+            full_results(x).train_acc_std = [full_results(x).train_acc_std,results(x).train_acc_std];
+            full_results(x).diff_acc_avg = [full_results(x).diff_acc_avg,results(x).diff_acc_avg];
+            full_results(x).diff_acc_std = [full_results(x).diff_acc_std,results(x).diff_acc_std];
+            full_results(x).AEC = [full_results(x).AEC,results(x).AEC];
+            full_results(x).EC_std = [full_results(x).EC_std,results(x).EC_std];
+            full_results(x).ACS = [full_results(x).ACS,results(x).ACS];
+            full_results(x).DACS = [full_results(x).DACS,results(x).DACS];
+        end
     end
 end

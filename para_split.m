@@ -1,13 +1,17 @@
 
 %n_proc = 10;
 %per_proc = [25,25,20,20,15,15,10,10,5,5];
-%proc_trials = zeros(n_proc, max(per_proc));
 %tag = "newCNN";
 
-n_proc = 5;
-per_proc = [2,4,6,8,10];
-proc_trials = zeros(n_proc, max(per_proc));
+n_proc = 3;
+per_proc = [4,4,4];
 tag = "test";
+
+%Plot Settings
+shared_bounds = false;
+plot_type = 2;
+
+proc_trials = zeros(n_proc, max(per_proc));
 
 y = 1;
 for z = 1:n_proc
@@ -28,8 +32,12 @@ end
 n_completed = size(dir(string(pwd) + '\' + "Results[" + tag + "]*"),1);
 
 while n_completed < n_proc
-    pause(1800);
+    %pause(1800);
+    pause(30);
+    n_completed = size(dir(string(pwd) + '\' + "Results[" + tag + "]*"),1);
 end
 
 results = para_gather(n_proc, tag);
+
+plot_results(plot_type, results, size(results,2), shared_bounds);
 
