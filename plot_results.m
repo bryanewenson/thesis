@@ -11,7 +11,7 @@ function fig = plot_results(plot_type_keyval, results, varargin)
         error(msg);
     end
 
-bp_factor = 0.05;
+    bp_factor = 0.05;
     
 %% Determine the appropriate data to be used for each of the plots
     switch plot_type_keyval
@@ -83,12 +83,13 @@ bp_factor = 0.05;
         
             % 4 = Average error consistency and testing accuracy over the
             % portion of the total sample size used.
-            fig_label = sprintf("Sample Size Portions - %s - %s", method, dataset);
-            fig_title = sprintf("AEC and Average Accuracy wrt Sample Size Portion \n Using %s %s on %s Dataset", results(exp_idx).validation, method, dataset);
             
             for exp_idx = 1:n_experiments
-                fig_label = sprintf("Error Consistency and Accuracy - Max %0.1f%% SSP - %s %s", results(exp_idx).ssp_max, results(exp_idx).validation, results(exp_idx).dataset);
-                fig_title = sprintf("AEC and Accuracy wrt Sample Size Portion \n Using %s %s on %s Dataset", results(exp_idx).validation, results(exp_idx).method, results(exp_idx).dataset);
+                %fig_label = sprintf("Sample Size Portions - %s - %s", results(exp_idx).method, results(exp_idx).dataset);
+                %fig_title = sprintf("AEC and Average Accuracy wrt Sample Size Portion \n Using %s %s on %s Dataset", results(exp_idx).validation, results(exp_idx).method, results(exp_idx).dataset);
+                
+                fig_label{exp_idx} = sprintf("Error Consistency and Accuracy - Max %0.1f%% SSP - %s %s", 100 * results(exp_idx).ssp(end), results(exp_idx).validation, results(exp_idx).dataset);
+                fig_title{exp_idx} = sprintf("AEC and Accuracy wrt Sample Size Portion \n Using %s %s on %s Dataset", results(exp_idx).validation, results(exp_idx).method, results(exp_idx).dataset);
             
                 plot_x(exp_idx,:) = results(exp_idx).ssp;
                 plot_y_left(exp_idx,:) = results(exp_idx).AEC;
@@ -157,7 +158,7 @@ bp_factor = 0.05;
         ylabel(fig_label_y_left);
         ylim([bound_y_min_left-padding_y_left bound_y_max_left+padding_y_left]);
 
-        if exist('y_right', 'var')
+        if exist('plot_y_right', 'var')
             yyaxis right;
 
             plotting_handle_right(plot_x, plot_y_right);
