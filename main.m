@@ -52,12 +52,12 @@ of the function. The values are:
     -2 = K-Fold
 %}
 
-n_trials            = 15;
+n_trials            = 150;
 method_keyval       = [1];
 dataset_keyval      = [1];
-fs_keyval           = 2;
-plot_type_keyval    = 4;
-valid_keyval        = 2;
+fs_keyval           = 1;
+plot_type_keyval    = 5;
+valid_keyval        = 1;
  
 %{
 ** VALIDATION PARAMETERS **
@@ -72,7 +72,7 @@ reserved for the training set.
 %}
 
 valid_rand          = true;
-valid_runs          = 50;
+valid_runs          = 150;
 holdout_ratio       = 0.60;
 K                   = 5;
 
@@ -86,10 +86,10 @@ NOTE: The rest are explained in detail within the associated thesis.
 %}
 
 sort_order          = 'descend';
-n_select_set        = [25]; % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
+n_select_set        = [5]; % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
 n_shift_set         = [0];            % Number of features to shift away from the beginning of the potential feature set
 perf_vfs            = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
-trim_threshold      = 1;            % If between 0 and 1, enforces a threshold on the inclusion of features in the dataset. Any measurement that has a single value with a relative frequency higher than this threshold will be removed from the feature set.
+trim_threshold      = 1;            % If within (0,1], enforces a relative frequency threshold on included features. Any feature containing a value with relative frequency above the threshold is removed from the experiment.
 trim_esnan          = true;
 
 %{
@@ -102,7 +102,7 @@ within thesis along with ssp_max and min_samples.
 - full_effect_size: If true, calculate effect size of features before
 subsampling. Otherwise done after subsampling. 
 %}
-perf_ssp            = true;        % Perform subsampling?
+perf_ssp            = false;        % Perform subsampling?
 rnd_ssp             = false;        % Use random ssp values?   
 strict_subsampling  = true;         % Restrict all subsampling to an initial selection of an ssp_max subsample. 
 ssp_max             = 1.0;         % The largest allowable subsampling portion
@@ -128,12 +128,11 @@ if nargin == 8
     proc_idx = varargin{1};
     proc_trials = varargin{2};
     tag = varargin{3};
-    seed = varargin{4};
-    method_keyval = varargin{5};
-    dataset_keyval = varargin{6};
-    fs_keyval = varargin{7};
-    plot_type_keyval = varargin{8};
-    valid_keyval = varargin{9};
+    method_keyval = varargin{4};
+    dataset_keyval = varargin{5};
+    fs_keyval = varargin{6};
+    plot_type_keyval = varargin{7};
+    valid_keyval = varargin{8};
 elseif nargin == 5
     method_keyval = varargin{1};
     dataset_keyval = varargin{2};
@@ -144,7 +143,6 @@ elseif nargin == 3
     proc_idx = varargin{1};
     proc_trials = varargin{2};
     tag = varargin{3};
-    seed = varargin{4};
 
     if max(proc_trials) > n_trials
         disp("Error: No proc_trials values allowed above n_trials");
@@ -262,7 +260,6 @@ for idx_dataset = 1:n_datasets
             n_trials = n_select;
             proc_trials = n_select;
         end
-
         
         %Perform feature selection
         switch fs_keyval
@@ -314,7 +311,7 @@ for idx_dataset = 1:n_datasets
                 rest_subsample = subsample(L, ssp_max);
                 L_rest = L(rest_subsample);
                 F_rest = F(rest_subsample, :);
-                %Normalize the ssp_set since the dataset is already subsampled.
+                %Normalize the ssp_set since the sample set is reduced.
                 ssp_set = ssp_set / ssp_max;
             else
                 L_rest = L;
@@ -340,6 +337,7 @@ for idx_dataset = 1:n_datasets
             results(idx_exp).D_mean = D_mean;
             results(idx_exp).n_select = n_select;
             results(idx_exp).n_shift = n_shift;
+            results(idx_exp).sort_order = sort_order;
 
             %Evaluate
             if perf_ssp

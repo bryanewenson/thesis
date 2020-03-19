@@ -1,4 +1,4 @@
-function [test_acc_avg, test_acc_std, train_acc_avg, train_acc_std, diff_acc_avg, diff_acc_std, AEC, EC_std, ACS, DACS] = valid_kfold(features, labels, validation_runs, K, M_handle, is_random)
+function [test_acc_avg, test_acc_std, train_acc_avg, train_acc_std, diff_acc_avg, diff_acc_std, AEC, EC_std, RS, RSQ] = valid_kfold(features, labels, validation_runs, K, M_handle, is_random)
 
     num_samples = size(features, 1);
     group_size = round(num_samples / K);
@@ -71,6 +71,6 @@ function [test_acc_avg, test_acc_std, train_acc_avg, train_acc_std, diff_acc_avg
     diff_acc_std = std(diff_acc);
     
     [AEC, EC_std] = get_AEC(error_set);
-    [ACS, DACS] = get_ACS(test_acc_avg, diff_acc_avg, labels);
+    [RS, RSQ] = get_RSQ(test_acc_avg, diff_acc_avg, labels);
     
 end

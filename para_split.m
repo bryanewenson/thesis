@@ -1,11 +1,7 @@
 
-%n_proc = 10;
-%per_proc = [25,25,20,20,15,15,10,10,5,5];
-%tag = "newCNN";
-
-n_proc = 3;
-per_proc = [4,4,4];
-tag = "test";
+n_proc = 10;
+per_proc = [25,25,20,20,15,15,10,10,5,5];
+tag = "SSPMax1000";
 
 %Plot Settings
 shared_bounds = false;
@@ -40,7 +36,7 @@ end
 results = para_gather(n_proc, tag);
 
 c = fix(clock);
-save(sprintf("Results_Full[%s][%d-%d_%d-%d-%d]", tag,...
+save(sprintf("Results[%s][%d-%d_%d-%d-%d]", tag,...
     c(2), c(3), c(4), c(5), c(6)));
 
 figures = plot_results(plot_type, results, size(results,2), shared_bounds);
