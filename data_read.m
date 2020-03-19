@@ -10,10 +10,9 @@ Input:
     loaded. It is assumed that this dataset is in a location on the
     execution path, or that the absolute path has been passed. Note that
     the file extension is not needed. 
-    - trim_threshold: This is a float value that is ignored if outside of
-    the range of 0 to 1 (exclusive). If passed within that range, finds and
-    excludes any feature that contains a value with a relative frequency
-    above the given trim_threshold. 
+    - trim_threshold: This is a float value that is ignored if outside 
+    (0,1]. Otherwise, any features containing a value with a relative 
+    frequency above the given value will be removed from the feature set.
 
 Output:
     - D: A matrix of size Nx1. This contains the effect size for each
@@ -31,7 +30,7 @@ function [D, F, L, N] = data_read(dataset, trim_threshold, trim_esnan)
 
     load(dataset);
 
-    if trim_threshold > 0 && trim_threshold < 1
+    if trim_threshold > 0 && trim_threshold <= 1
         %Find all features that fall over the given trimming threshold
         U = arrayfun(@(col) trim(measurements(:,col), trim_threshold, ...
             samples), (1:num_features))';
