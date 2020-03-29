@@ -25,7 +25,8 @@ are:
 experiment. Several can be selected by providing an array.  The values are:
     - 1 = Arrhythmia, 2 = Schizophrenia, 3 = MNIST, 4 = Abalone
     - 5 = Autism, 6 = Banknote, 7 = Diabetes, 8 = Liver, 9 = Parkinsons
-    - 10 = Sonar, 11 = SPECT, 12 = Transfusion, 13 = Waveform, 14 = Wine
+    - 10 = Sonar, 11 = SPECT, 12 = SPECTD, 13 = Transfusion, 14 = Waveform
+    - 15 = Wine
 
 - fs_keyval: This selection governs the method of feature selection.
 Descriptions of the different methods are in the associated paper. The 
@@ -52,10 +53,10 @@ of the function. The values are:
     -2 = K-Fold
 %}
 
-n_trials            = 150;
-method_keyval       = [1];
+n_trials            = 5;
+method_keyval       = [1,2,3,4];
 dataset_keyval      = [1];
-fs_keyval           = 1;
+fs_keyval           = 0;
 plot_type_keyval    = 5;
 valid_keyval        = 1;
  
@@ -72,7 +73,7 @@ reserved for the training set.
 %}
 
 valid_rand          = true;
-valid_runs          = 150;
+valid_runs          = 10;
 holdout_ratio       = 0.60;
 K                   = 5;
 
@@ -86,8 +87,8 @@ NOTE: The rest are explained in detail within the associated thesis.
 %}
 
 sort_order          = 'descend';
-n_select_set        = [5]; % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
-n_shift_set         = [0];            % Number of features to shift away from the beginning of the potential feature set
+n_select_set        = [5];          % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
+n_shift_set         = [0];          % Number of features to shift away from the beginning of the potential feature set
 perf_vfs            = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
 trim_threshold      = 1;            % If within (0,1], enforces a relative frequency threshold on included features. Any feature containing a value with relative frequency above the threshold is removed from the experiment.
 trim_esnan          = true;
@@ -102,15 +103,15 @@ within thesis along with ssp_max and min_samples.
 - full_effect_size: If true, calculate effect size of features before
 subsampling. Otherwise done after subsampling. 
 %}
-perf_ssp            = false;        % Perform subsampling?
-rnd_ssp             = false;        % Use random ssp values?   
+perf_ssp           = false;        % Perform variable subsampling?
 strict_subsampling  = true;         % Restrict all subsampling to an initial selection of an ssp_max subsample. 
-ssp_max             = 1.0;         % The largest allowable subsampling portion
-min_samples         = 10;          % Minimum sample size to test, should be >= K
-full_effect_size    = true;         % Use entire sample set for effect size calculations?
+ssp_max             = 0.50;         % The largest allowable subsampling portion
+rnd_ssp             = false;        % Use random ssp values?   
+min_samples         = 10;          % Minimum sample size to test, should be >= K if using K-Fold
 
 %PLOTTING PARAMETERS
 shared_bounds       = true;         % Use the same bounds for each experiment
+full_effect_size    = true;         % Measure effect size using full dataset?
 
 iterative_saves     = false;        % Save after every experiment?
 
@@ -175,7 +176,7 @@ end
 n_datasets = size(dataset_keyval,2);
 dataset_names = ["Arrhythmia", "Schizophrenia", "MNIST", ...
     "Abalone", "Autism", "Banknote", "Diabetes", "Liver", "Parkinsons", ...
-    "Sonar", "SPECT", "Transfusion", "Waveform", "Wine"];
+    "Sonar", "SPECT", "SPECTD", "Transfusion", "Waveform", "Wine"];
 
 %Determine the name and handle of the selected ML method
 n_methods = size(method_keyval,2);
@@ -234,7 +235,19 @@ for idx_dataset = 1:n_datasets
     end
 
     %TODO: RECALCULATE COHENS D AFTER SSP 
-    [D, F, L, N] = data_read(dataset, trim_threshold, trim_esnan);
+    [D_full, F, L, N] = data_read(dataset, trim_threshold, trim_esnan);
+    
+    D = D_full;
+    
+    if ~perf_ssp && strict_subsampling
+        rest_subsample = subsample(L, ssp_max);
+        L = L(rest_subsample);
+        F = F(rest_subsample, :);
+        if ~full_effect_size
+            D = arrayfun(@(col) get_effect_size(F(:,col), ...
+            find(L==1), find(L==0)), (1:N))';
+        end
+    end
     
     % FEATURE SELECTION LOOP
     for idx_fs = 1:n_fs
@@ -279,12 +292,7 @@ for idx_dataset = 1:n_datasets
 
         %need a matrix F_idx where each row contains the chosen features for
         %that trial
-
-        % SUBSAMPLING LOOP
-        if exist('seed','var')
-            rng(seed);
-        end
-
+                
         if perf_ssp
             if rnd_ssp
                 %Generate the set of subsampling portions
@@ -293,6 +301,7 @@ for idx_dataset = 1:n_datasets
                     find(ssp_set > ssp_max)];
 
                 %Replace any of the ssp values that bring the ssp out of range
+
                 while ~isempty(ssp_replace)
                     ssp_set(ssp_replace) = rand(1,size(ssp_replace,2));
                     ssp_replace = [find(ssp_set < (min_samples/size(L,1))),...
@@ -324,6 +333,7 @@ for idx_dataset = 1:n_datasets
             results(:).ssp = ssp_set;
         end 
 
+        
         % ML METHOD LOOP
         for idx_method = 1:n_methods    
             %Get handle to appropriate ML method
@@ -419,5 +429,5 @@ save(sprintf("Results[%s][%d][%d-%d_%d-%d-%d]", tag, proc_idx,...
 
 %Plot Results
 if plot_type_keyval ~= 0
-    figures = plot_results(plot_type_keyval, results, n_experiments, shared_bounds);
+    figures = plot_results(plot_type_keyval, results, shared_bounds);
 end

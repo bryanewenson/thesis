@@ -39,6 +39,6 @@ c = fix(clock);
 save(sprintf("Results[%s][%d-%d_%d-%d-%d]", tag,...
     c(2), c(3), c(4), c(5), c(6)));
 
-figures = plot_results(plot_type, results, size(results,2), shared_bounds);
+figures = plot_results(plot_type, results, shared_bounds);
 
 save();

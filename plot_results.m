@@ -1,15 +1,15 @@
 function fig = plot_results(plot_type_keyval, results, varargin)
 %% Parse the argument list
     if nargin == 2
-        n_experiments = 1;
         shared_bounds = false;
-    elseif nargin == 4
-        n_experiments = varargin{1};
-        shared_bounds = varargin{2};
+    elseif nargin == 3
+        shared_bounds = varargin{1};
     else
         msg = "Invalid number of arguments to function";
         error(msg);
     end
+    
+    n_experiments = size(results,2);
 
     bp_factor_y = 0.05;
     bp_factor_x = 0.05;
@@ -112,19 +112,19 @@ function fig = plot_results(plot_type_keyval, results, varargin)
        
         case 5
             
-            % 5 = Added Classifier Significance over Effect Size
+            % 5 = Relative Significance Quotient over Effect Size
             
             for exp_idx = 1:n_experiments
                 
-                fig_label{exp_idx} = sprintf("DACS - %s %s", results(exp_idx).method, results(exp_idx).dataset);
-                fig_title{exp_idx} = sprintf("DACS of %s wrt Mean Effect Size of the Underlying %d Features from the %s Dataset", results(exp_idx).method, results(exp_idx).n_select, results(exp_idx).dataset);
+                fig_label{exp_idx} = sprintf("RSQ - %s %s", results(exp_idx).method, results(exp_idx).dataset);
+                fig_title{exp_idx} = sprintf("RSQ of %s wrt Mean Effect Size of the Underlying \n%d Features from the %s Dataset", results(exp_idx).method, results(exp_idx).n_select, results(exp_idx).dataset);
             
                 plot_x(exp_idx,:) = results(exp_idx).D_mean;
                 plot_y_left(exp_idx,:) = results(exp_idx).DACS;
             end
             
             fig_label_x = "Mean Effect Size";
-            fig_label_y_left = "DACS of Model";            
+            fig_label_y_left = "RSQ of Model";            
             
             plotting_handle_left = {@(datax,datay)scatter(datax,datay)};
     end
@@ -150,13 +150,12 @@ function fig = plot_results(plot_type_keyval, results, varargin)
     
 %% Produce a plot for each experiment
     for exp_idx = 1:n_experiments
-        
-         if ~shared_bound_x
+        if ~shared_bound_x
             bound_x_min = min(plot_x(exp_idx,:));
             bound_x_max = max(plot_x(exp_idx,:));
             padding_x = (bound_x_max - bound_x_min) * bp_factor_x;
-         end
-         if ~shared_bound_y
+        end
+        if ~shared_bound_y
             bound_y_min_left = min(plot_y_left(exp_idx,:));
             bound_y_max_left = max(plot_y_left(exp_idx,:));
             padding_y_left = (bound_y_max_left - bound_y_min_left) * bp_factor_y;
@@ -166,7 +165,7 @@ function fig = plot_results(plot_type_keyval, results, varargin)
                 bound_y_max_right = max(plot_y_right(exp_idx,:));
                 padding_y_right = (bound_y_max_right - bound_y_min_right) * bp_factor_y;
             end
-         end
+        end
 
         fig(exp_idx) = figure("Name", fig_label{exp_idx}, "Position", [exp_idx*20 exp_idx*20, 600 500], 'NumberTitle', 'off');
 
@@ -183,11 +182,11 @@ function fig = plot_results(plot_type_keyval, results, varargin)
 
         ylabel(fig_label_y_left);
         ylim([bound_y_min_left-padding_y_left bound_y_max_left+padding_y_left]);
-
+        
         if exist('plot_y_right', 'var')
             yyaxis right;
 
-            plotting_handle_right(plot_x(exp_idx,:), plot_y_right(exp_idx,:));
+            plotting_handle_right{plot_idx}(plot_x(exp_idx,:), plot_y_right(exp_idx,:));
             ylabel(fig_label_y_right);
             ylim([bound_y_min_right-padding_y_right bound_y_max_right+padding_y_right]);
         end

@@ -49,6 +49,6 @@ function [test_acc_avg, test_acc_std, train_acc_avg, train_acc_std, diff_acc_avg
     diff_acc_std = std(diff_acc);
     
     [AEC, EC_std] = get_AEC(error_set);
-    [RS, RSQ] = get_ACS(test_acc_avg, diff_acc_avg, labels);
+    [RS, RSQ] = get_RSQ(test_acc_avg, diff_acc_avg, labels);
     
 end
