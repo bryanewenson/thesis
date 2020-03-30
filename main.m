@@ -53,12 +53,12 @@ of the function. The values are:
     -2 = K-Fold
 %}
 
-n_trials            = 5;
-method_keyval       = [1,2,3,4];
+n_trials            = 10;
+method_keyval       = [1];
 dataset_keyval      = [1];
-fs_keyval           = 0;
-plot_type_keyval    = 5;
-valid_keyval        = 1;
+fs_keyval           = 1;
+plot_type_keyval    = 4;
+valid_keyval        = 2;
  
 %{
 ** VALIDATION PARAMETERS **
@@ -73,7 +73,7 @@ reserved for the training set.
 %}
 
 valid_rand          = true;
-valid_runs          = 10;
+valid_runs          = 15;
 holdout_ratio       = 0.60;
 K                   = 5;
 
@@ -89,9 +89,8 @@ NOTE: The rest are explained in detail within the associated thesis.
 sort_order          = 'descend';
 n_select_set        = [5];          % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
 n_shift_set         = [0];          % Number of features to shift away from the beginning of the potential feature set
-perf_vfs            = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
+fixed_validation    = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
 trim_threshold      = 1;            % If within (0,1], enforces a relative frequency threshold on included features. Any feature containing a value with relative frequency above the threshold is removed from the experiment.
-trim_esnan          = true;
 
 %{
 ** SUBSAMPLING PARAMETERS **
@@ -103,15 +102,16 @@ within thesis along with ssp_max and min_samples.
 - full_effect_size: If true, calculate effect size of features before
 subsampling. Otherwise done after subsampling. 
 %}
-perf_ssp           = false;        % Perform variable subsampling?
-strict_subsampling  = true;         % Restrict all subsampling to an initial selection of an ssp_max subsample. 
-ssp_max             = 0.50;         % The largest allowable subsampling portion
-rnd_ssp             = false;        % Use random ssp values?   
+perf_ssp            = true;        % Perform variable subsampling?
+strict_subsampling  = false;         % Restrict all subsampling to an initial selection of an ssp_max subsample. 
+ssp_max             = 0.025;         % The largest allowable subsampling portion
+ssp_min             = 0.025;         % The smallest allowable subsampling portion
+rnd_ssp             = false;        % Use random ssp values?   IF false, use linspace between min and max
 min_samples         = 10;          % Minimum sample size to test, should be >= K if using K-Fold
 
 %PLOTTING PARAMETERS
 shared_bounds       = true;         % Use the same bounds for each experiment
-full_effect_size    = true;         % Measure effect size using full dataset?
+full_effect_size    = true;         % Measure effect size using full dataset? Only affects strict subsampling
 
 iterative_saves     = false;        % Save after every experiment?
 
@@ -208,15 +208,9 @@ end
 
 %Adjust perf_vfs if necessary
 if fs_keyval == 2 || fs_keyval == 0
-    perf_vfs = false;
+    fixed_validation = false;
 elseif fs_keyval == 3
-    perf_vfs = true;
-end
-
-%Disallow the simultaneous use of SSP and VFS
-if perf_ssp && ((perf_vfs && fs_keyval == 1) || fs_keyval == 3)
-    disp("Error: This program does not support simultaneous ssp and vfs");
-    return;
+    fixed_validation = true;
 end
 
 %% Experiment
@@ -230,24 +224,45 @@ for idx_dataset = 1:n_datasets
 
     %Ensures that the dataset can be found by Matlab
     if ~(exist(sprintf("%s.mat", dataset), 'file'))
-        disp("Data cannot be found. Make sure its directory is on path.")
-        return;
+        error('Data cannot be found. Make sure its directory is on path.')
     end
 
-    %TODO: RECALCULATE COHENS D AFTER SSP 
-    [D_full, F, L, N] = data_read(dataset, trim_threshold, trim_esnan);
+    [D_full, F_full, L_full, N] = data_read(dataset, trim_threshold);
     
-    D = D_full;
-    
-    if ~perf_ssp && strict_subsampling
-        rest_subsample = subsample(L, ssp_max);
-        L = L(rest_subsample);
-        F = F(rest_subsample, :);
+    if strict_subsampling
+        rest_idx = subsample(L, ssp_max);
+        L = L(rest_idx);
+        F = F(rest_idx, :);
         if ~full_effect_size
-            D = arrayfun(@(col) get_effect_size(F(:,col), ...
-            find(L==1), find(L==0)), (1:N))';
+            D = arrayfun(@(col) get_effect_size(F_full(:,col), ...
+            find(L_full==1), find(L_full==0)), (1:N))';
+        else
+            D = D_full;
         end
+    else
+        D = D_full;
+        F = F_full;
+        L = L_full;
     end
+    
+    if perf_ssp
+        ssp_min = max(ssp_min, min_samples/size(L,1));
+            
+        if ssp_max < ssp_min
+            error('Error: min_ssp cannot be greater than max_ssp.');
+        end
+            
+        if rnd_ssp
+            ssp_set = rand(1,n_trials) .* (ssp_max - ssp_min) + ssp_min;
+        else
+            ssp_set = linspace(ssp_min, ssp_max, n_trials); 
+        end
+
+        %Generate the subsampling selections
+        S_idx = arrayfun(@(q) subsample(L, ssp_set(q)), ...
+            (1:n_trials), "UniformOutput", false);
+        results(:).ssp = ssp_set;
+    end 
     
     % FEATURE SELECTION LOOP
     for idx_fs = 1:n_fs
@@ -292,47 +307,6 @@ for idx_dataset = 1:n_datasets
 
         %need a matrix F_idx where each row contains the chosen features for
         %that trial
-                
-        if perf_ssp
-            if rnd_ssp
-                %Generate the set of subsampling portions
-                ssp_set = rand(1,n_trials);
-                ssp_replace = [find(ssp_set < (min_samples / size(L,1))), ...
-                    find(ssp_set > ssp_max)];
-
-                %Replace any of the ssp values that bring the ssp out of range
-
-                while ~isempty(ssp_replace)
-                    ssp_set(ssp_replace) = rand(1,size(ssp_replace,2));
-                    ssp_replace = [find(ssp_set < (min_samples/size(L,1))),...
-                        find(ssp_set > ssp_max)];
-                end
-            else
-                ssp_min = min_samples / size(L,1);
-                if ssp_min > ssp_max
-                    disp("Error: SSP_min > SSP_max");
-                    return;
-                end
-                ssp_set = linspace(ssp_min, ssp_max, n_trials); 
-            end
-
-            if strict_subsampling
-                rest_subsample = subsample(L, ssp_max);
-                L_rest = L(rest_subsample);
-                F_rest = F(rest_subsample, :);
-                %Normalize the ssp_set since the sample set is reduced.
-                ssp_set = ssp_set / ssp_max;
-            else
-                L_rest = L;
-                F_rest = F;
-            end
-
-            %Generate the subsampling selections
-            S_idx = arrayfun(@(q) subsample(L_rest, ssp_set(q)), ...
-                (1:n_trials), "UniformOutput", false);
-            results(:).ssp = ssp_set;
-        end 
-
         
         % ML METHOD LOOP
         for idx_method = 1:n_methods    
@@ -348,6 +322,7 @@ for idx_dataset = 1:n_datasets
             results(idx_exp).n_select = n_select;
             results(idx_exp).n_shift = n_shift;
             results(idx_exp).sort_order = sort_order;
+            results(idx_exp).ssp_max = ssp_max;
 
             %Evaluate
             if perf_ssp
@@ -364,11 +339,11 @@ for idx_dataset = 1:n_datasets
                     results(idx_exp).ACS, ...
                     results(idx_exp).DACS]...
                     = arrayfun(@(t_idx) V_handle ...
-                    (F_rest(cell2mat(S_idx(t_idx)),F_idx), ...
-                    L_rest(cell2mat(S_idx(t_idx))), valid_runs, valid_param,...
+                    (F(cell2mat(S_idx(t_idx)),F_idx), ...
+                    L(cell2mat(S_idx(t_idx))), valid_runs, valid_param,...
                     M, valid_rand), (proc_trials));
 
-            elseif perf_vfs
+            elseif ~fixed_validation
                 if fs_keyval == 3
                     n_feat= arrayfun(@(idx) sum(F_idx(idx,:)~=0),(1:n_trials));
                     F_end = arrayfun(@(idx) sum(n_feat(1:idx)), 1:n_trials);
@@ -394,7 +369,21 @@ for idx_dataset = 1:n_datasets
                     = arrayfun(@(t_idx) V_handle ...
                     (F(:,F_idx(F_start(t_idx):F_end(t_idx))), L, valid_runs,...
                     valid_param, M, valid_rand), (proc_trials));
-            else
+            elseif ~fixed_validation && perf_ssp
+                results(idx_exp).ssp = ssp_set;
+
+                if fs_keyval == 3
+                    n_feat= arrayfun(@(idx) sum(F_idx(idx,:)~=0),(1:n_trials));
+                    F_end = arrayfun(@(idx) sum(n_feat(1:idx)), 1:n_trials);
+                    F_start = [1,F_end(1:end-1) + 1];
+                    F_idx = reshape(F_idx',[1,n_select * n_trials]);
+                    F_idx(F_idx == 0) = [];
+                else
+                    F_end = ((1:n_trials) .* n_select);
+                    F_start = (0:n_trials-1) .* n_select + 1;
+                    F_idx = reshape(F_idx',[1,n_select * n_trials]);
+                end
+
                 [results(idx_exp).test_acc_avg, ...
                     results(idx_exp).test_acc_std, ...
                     results(idx_exp).train_acc_avg, ...
@@ -405,6 +394,20 @@ for idx_dataset = 1:n_datasets
                     results(idx_exp).EC_std, ...
                     results(idx_exp).ACS, ...
                     results(idx_exp).DACS]...
+                    = arrayfun(@(t_idx) V_handle ...
+                    (F(cell2mat(S_idx(t_idx)),F_idx(F_start(t_idx):F_end(t_idx))), L(cell2mat(S_idx(t_idx))), valid_runs,...
+                    valid_param, M, valid_rand), (proc_trials));
+            else
+                [results(idx_exp).test_acc_avg, ...
+                    results(idx_exp).test_acc_std, ...
+                    results(idx_exp).train_acc_avg, ...
+                    results(idx_exp).train_acc_std, ...
+                    results(idx_exp).diff_acc_avg, ...
+                    results(idx_exp).diff_acc_std, ...
+                    results(idx_exp).AEC, ...
+                    results(idx_exp).EC_std, ...
+                    results(idx_exp).RS, ...
+                    results(idx_exp).QRS]...
                     = arrayfun(@(t_idx) V_handle (F(:,F_idx), L, valid_runs,...
                     valid_param, M, valid_rand), (proc_trials));
             end
