@@ -69,12 +69,12 @@ function fig = plot_results(plot_type_keyval, results, varargin)
             
         case 3
         
-            % 3 = Average error consistency over the average effect size of
-            % the underlying features.
+            % 3 = Average error consistency and accuracy over the average 
+            % effect size of the underlying features.
             
             for exp_idx = 1:n_experiments
                 fig_label{exp_idx} = sprintf("Effect Size - %0.1f%% SSP", results(exp_idx).ssp_max);
-                fig_title{exp_idx} = sprintf("AEC and Accuracy wrt Average Effect Size of Underlying Features\n%0.1f%% Subsampled From %s Dataset Using %s %s", results(exp_idx).ssp_max, results(exp_idx).dataset, results(exp_idx).validation, results(exp_idx).method);
+                fig_title{exp_idx} = sprintf("AEC and Accuracy wrt Average Effect Size of Underlying Features\n%0.1f%% Subsampled From %s Dataset Using %s %s", 100 * results(exp_idx).ssp_max, results(exp_idx).dataset, results(exp_idx).validation, results(exp_idx).method);
                 
                 plot_x(exp_idx,:) = results(exp_idx).D_mean;
                 plot_y_left(exp_idx,:) = results(exp_idx).AEC;
@@ -88,9 +88,26 @@ function fig = plot_results(plot_type_keyval, results, varargin)
             plotting_handle_left = {@(datax,datay)scatter(datax,datay)};
             plotting_handle_right = {@(datax,datay)plot(datax,datay)};
             
-        case 4 
+        case 4
+            % 4 = Average error consistency over the average effect size of
+            % the underlying features.
+            
+            for exp_idx = 1:n_experiments
+                fig_label{exp_idx} = sprintf("Effect Size - %0.1f%% SSP", results(exp_idx).ssp_max);
+                fig_title{exp_idx} = sprintf("AEC wrt Average Effect Size of Underlying Features\n%0.1f%% Subsampled From %s Dataset Using %s %s", 100 * results(exp_idx).ssp_max, results(exp_idx).dataset, results(exp_idx).validation, results(exp_idx).method);
+                
+                plot_x(exp_idx,:) = results(exp_idx).D_mean;
+                plot_y_left(exp_idx,:) = results(exp_idx).AEC;
+            end
+            
+            fig_label_x = "Average Effect Size of Underlying 5 Features";
+            fig_label_y_left = "Average Error Consistency";
+            
+            plotting_handle_left = {@(datax,datay)scatter(datax,datay)};
+            
+        case 5
         
-            % 4 = Average error consistency and testing accuracy over the
+            % 5 = Average error consistency and testing accuracy over the
             % portion of the total sample size used.
             
             for exp_idx = 1:n_experiments
@@ -110,9 +127,9 @@ function fig = plot_results(plot_type_keyval, results, varargin)
             plotting_handle_left = {@(datax,datay)scatter(datax,datay)};
             plotting_handle_right = {@(datax,datay)plot(datax,datay)};
        
-        case 5
+        case 6
             
-            % 5 = Relative Significance Quotient over Effect Size
+            % 6 = Relative Significance Quotient over Effect Size
             
             for exp_idx = 1:n_experiments
                 
