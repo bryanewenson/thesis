@@ -53,7 +53,7 @@ of the function. The values are:
     -2 = K-Fold
 %}
 
-n_trials            = 10;
+n_trials            = 150;
 method_keyval       = [1];
 dataset_keyval      = [1];
 fs_keyval           = 1;
@@ -73,7 +73,7 @@ reserved for the training set.
 %}
 
 valid_rand          = true;
-valid_runs          = 15;
+valid_runs          = 150;
 holdout_ratio       = 0.60;
 K                   = 5;
 
@@ -89,7 +89,7 @@ NOTE: The rest are explained in detail within the associated thesis.
 sort_order          = 'descend';
 n_select_set        = [5];          % Number of features to select. When using the climb method, refers to the amount of features to add. Gets set to the total number of features if set to 0.
 n_shift_set         = [0];          % Number of features to shift away from the beginning of the potential feature set
-fixed_validation    = true;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
+fixed_validation    = false;         % Perform variable feature selection, meaning that the selected features may vary between trials. If false, random will assign the same features for each trial, otherwise each trial will have a new random set of features. No other method is affected. 
 trim_threshold      = 1;            % If within (0,1], enforces a relative frequency threshold on included features. Any feature containing a value with relative frequency above the threshold is removed from the experiment.
 
 %{
@@ -208,9 +208,9 @@ end
 
 %Adjust perf_vfs if necessary
 if fs_keyval == 2 || fs_keyval == 0
-    fixed_validation = false;
-elseif fs_keyval == 3
     fixed_validation = true;
+elseif fs_keyval == 3
+    fixed_validation = false;
 end
 
 %% Experiment

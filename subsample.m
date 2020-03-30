@@ -15,5 +15,5 @@ function S_idx = subsample(L, ssp)
     %Randomize the order of the indices
     S_idx = S_idx(randperm(neg_ssp_samples + pos_ssp_samples));
     
-S_idxend
+end
 
