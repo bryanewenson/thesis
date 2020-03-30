@@ -26,7 +26,7 @@ Output:
     sample in F.
     - N: The final number of features in the dataset.
 %}
-function [D, F, L, N] = data_read(dataset, trim_threshold, trim_esnan)
+function [D, F, L, N] = data_read(dataset, trim_threshold)
 
     load(dataset);
 
@@ -47,10 +47,9 @@ function [D, F, L, N] = data_read(dataset, trim_threshold, trim_esnan)
     D = arrayfun(@(col) get_effect_size(measurements(:,col), ...
         positive_indices, negative_indices), (1:N))';
     
-    if trim_esnan
-        measurements(:,isnan(D)) = [];
-        D(isnan(D)) = [];
-    end
+    nan_idx = isnan(D);
+    measurements(:,nan_idx) = [];
+    D(nan_idx) = [];
     
     F = measurements;
     N = size(measurements, 2);
